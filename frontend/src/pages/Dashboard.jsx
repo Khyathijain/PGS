@@ -17,6 +17,9 @@ function Dashboard() {
     const [goals, setGoals] = useState([]);
     const [editingGoalId, setEditingGoalId] = useState(null);
 
+    const [aiPlan, setAiPlan] = useState("");
+    const [loadingAI, setLoadingAI] = useState(false);
+
     // Load goals when dashboard opens
     useEffect(() => {
         fetchGoals();
@@ -119,6 +122,8 @@ const handleDelete = async (goalId) => {
 
         }
 
+        
+
         // Clear Form
         setTitle("");
         setDescription("");
@@ -138,6 +143,44 @@ const handleDelete = async (goalId) => {
     }
 
 };
+    //AI Plan Generation
+    const handleGenerateAIPlan = async () => {
+
+    if (title.trim() === "") {
+
+        alert("Please enter a goal title first!");
+
+        return;
+
+    }
+
+    try {
+
+        setLoadingAI(true);
+
+        const response = await api.post(
+            "/ai/generate-plan",
+            {
+                goal: title
+            }
+        );
+
+        setAiPlan(response.data.plan);
+
+    } catch (error) {
+
+        console.log(error);
+
+        alert("Failed to generate AI plan.");
+
+    } finally {
+
+        setLoadingAI(false);
+
+    }
+
+};
+   
 
     // Logout
     const handleLogout = () => {
@@ -206,6 +249,35 @@ const handleDelete = async (goalId) => {
                 >
                     {editingGoalId === null ? "Create Goal" : "Update Goal"}
                 </button>
+
+                <button
+                    onClick={handleGenerateAIPlan}
+                    className="bg-purple-600 text-white w-full py-2 rounded hover:bg-purple-700 mb-6"
+                >
+                    🤖 Generate AI Plan
+                </button>
+
+                {loadingAI && (
+                    <p className="text-blue-600 mb-4">
+                        Generating AI Study Plan...
+                    </p>
+                )}
+
+                {aiPlan && (
+                    <div className="bg-gray-100 p-4 rounded-lg mb-6">
+
+                        <h2 className="text-xl font-bold mb-3">
+                            🤖 AI Study Plan
+                        </h2>
+
+                        <pre className="whitespace-pre-wrap">
+                            {aiPlan}
+                        </pre>
+
+                    </div>
+                )}
+
+                
 
                 <hr className="mb-6" />
 
