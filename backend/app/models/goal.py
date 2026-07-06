@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from app.database import Base
 
 
+
 class Goal(Base):
     __tablename__ = "goals"
 
@@ -23,3 +24,10 @@ class Goal(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
 
     user = relationship("User", back_populates="goals")
+    
+    tasks = relationship(
+    "Task",
+    back_populates="goal",
+    cascade="all, delete"
+)
+    

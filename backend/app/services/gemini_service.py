@@ -26,6 +26,29 @@ def generate_plan(goal: str):
 
         Divide it into weekly milestones.
         """
+        
+    )
+    
+    return response.text
+
+def generate_tasks(goal: str):
+
+    response = model.generate_content(
+        f"""
+        Generate exactly 10 learning tasks for the following goal.
+
+        Goal:
+        {goal}
+
+        Rules:
+
+        - Return only task titles.
+        - One task per line.
+        - Do NOT number them.
+        - Do NOT add headings.
+        - Do NOT add explanations.
+        - Keep every task short.
+        """
     )
 
     return response.text

@@ -7,6 +7,8 @@ from app.models.user import User
 from app.schemas.goal import GoalCreate, GoalResponse
 from app.core.jwt_handler import get_current_user
 
+from app.models.task import Task
+
 router = APIRouter(
     prefix="/goals",
     tags=["Goals"]
@@ -109,3 +111,43 @@ def delete_goal(
         "message": "Goal deleted successfully"
     }
     
+@router.get("/progress/{goal_id}")
+def get_goal_progress(
+    goal_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    goal = db.query(Goal).filter(
+        Goal.id == goal_id,
+        Goal.user_id == current_user.id
+    ).first()
+
+    if goal is None:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Goal not found"
+        )
+    total_tasks = db.query(Task).filter(
+        Task.goal_id == goal_id
+    ).count()
+        
+    completed_tasks = db.query(Task).filter(
+        Task.goal_id == goal_id,
+        Task.completed == True
+    ).count()
+    
+    if total_tasks == 0:
+        progress = 0
+    else:
+        progress = int(
+            (completed_tasks / total_tasks) * 100
+        )
+
+    return {
+        "total_tasks": total_tasks,
+        "completed_tasks": completed_tasks,
+        "progress": progress
+    }
+        
+        

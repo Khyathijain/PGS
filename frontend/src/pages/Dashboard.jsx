@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
+import GoalForm from "../components/GoalForm";
+import AIPlan from "../components/AIPlan";
+import GoalCard from "../components/GoalCard";
 
 function Dashboard() {
 
@@ -20,6 +23,9 @@ function Dashboard() {
     const [aiPlan, setAiPlan] = useState("");
     const [loadingAI, setLoadingAI] = useState(false);
 
+    const [tasks, setTasks] = useState({});
+    const [progress, setProgress] = useState({});
+
     // Load goals when dashboard opens
     useEffect(() => {
         fetchGoals();
@@ -34,6 +40,12 @@ function Dashboard() {
 
             setGoals(response.data);
 
+            response.data.forEach((goal) => {
+
+                fetchTasks(goal.id);
+                fetchProgress(goal.id);
+
+        });
         } catch (error) {
 
             console.log(error);
@@ -41,6 +53,46 @@ function Dashboard() {
         }
 
     };
+
+    const fetchTasks = async (goalId) => {
+
+        try {
+
+            const response = await api.get(`/tasks/${goalId}`);
+
+            setTasks(prev => ({
+                ...prev,
+                [goalId]: response.data
+            }));
+
+        } catch (error) {
+
+            console.log(error);
+
+        }
+
+    };
+
+    const fetchProgress = async (goalId) => {
+
+    try {
+
+        const response = await api.get(
+            `/goals/progress/${goalId}`
+        );
+
+        setProgress(prev => ({
+            ...prev,
+            [goalId]: response.data
+        }));
+
+    } catch (error) {
+
+        console.log(error);
+
+    }
+
+};
 
     const handleEdit = (goal) => {
 
@@ -75,6 +127,111 @@ const handleDelete = async (goalId) => {
         console.log(error);
 
         alert("Failed to delete goal!");
+
+    }
+
+};
+
+const handleAddTask = async (goalId, taskTitle) => {
+
+    if (taskTitle.trim() === "") {
+
+        alert("Please enter a task title.");
+
+        return;
+
+    }
+
+    try {
+
+        await api.post(
+
+            `/tasks/${goalId}`,
+
+            {
+                title: taskTitle
+            }
+
+        );
+
+        // Reload tasks for this goal
+        fetchTasks(goalId);
+        fetchProgress(goalId);
+
+    } catch (error) {
+
+        console.log(error);
+
+        alert("Failed to add task.");
+
+    }
+
+};
+
+const handleToggleTask = async (taskId, completed, goalId) => {
+
+    try {
+
+        await api.put(
+
+            `/tasks/${taskId}`,
+
+            {
+                completed: !completed
+            }
+
+        );
+
+        // Reload tasks
+        fetchTasks(goalId);
+        fetchProgress(goalId);
+
+    } catch (error) {
+
+        console.log(error);
+
+        alert("Failed to update task.");
+
+    }
+
+};
+
+const handleDeleteTask = async (taskId, goalId) => {
+
+    try {
+
+        await api.delete(`/tasks/${taskId}`);
+
+        // Reload tasks for this goal
+        fetchTasks(goalId);
+        fetchProgress(goalId);
+
+    } catch (error) {
+
+        console.log(error);
+
+        alert("Failed to delete task.");
+
+    }
+
+};
+const handleGenerateAITasks = async (goalId) => {
+
+    try {
+
+        await api.post(`/ai/generate-tasks/${goalId}`);
+
+        alert("AI Tasks Generated Successfully!");
+
+        // Reload tasks for this goal
+        fetchTasks(goalId);
+        fetchProgress(goalId);
+
+    } catch (error) {
+
+        console.log(error);
+
+        alert("Failed to generate AI tasks.");
 
     }
 
@@ -202,80 +359,26 @@ const handleDelete = async (goalId) => {
                 </h1>
 
                 {/* Goal Form */}
-
-                <input
-                    type="text"
-                    placeholder="Goal Title"
-                    className="border p-2 w-full mb-4 rounded"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
+                <GoalForm
+                    title={title}
+                    setTitle={setTitle}
+                    description={description}
+                    setDescription={setDescription}
+                    deadline={deadline}
+                    setDeadline={setDeadline}
+                    priority={priority}
+                    setPriority={setPriority}
+                    dailyHours={dailyHours}
+                    setDailyHours={setDailyHours}
+                    editingGoalId={editingGoalId}
+                    handleCreateGoal={handleCreateGoal}
                 />
 
-                <textarea
-                    placeholder="Goal Description"
-                    className="border p-2 w-full mb-4 rounded"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
+               <AIPlan
+                    handleGenerateAIPlan={handleGenerateAIPlan}
+                    loadingAI={loadingAI}
+                    aiPlan={aiPlan}
                 />
-
-                <input
-                    type="date"
-                    className="border p-2 w-full mb-4 rounded"
-                    value={deadline}
-                    onChange={(e) => setDeadline(e.target.value)}
-                />
-
-                <select
-                    className="border p-2 w-full mb-4 rounded"
-                    value={priority}
-                    onChange={(e) => setPriority(e.target.value)}
-                >
-                    <option value="High">High</option>
-                    <option value="Medium">Medium</option>
-                    <option value="Low">Low</option>
-                </select>
-
-                <input
-                    type="number"
-                    placeholder="Daily Hours"
-                    className="border p-2 w-full mb-6 rounded"
-                    value={dailyHours}
-                    onChange={(e) => setDailyHours(e.target.value)}
-                />
-
-                <button
-                    onClick={handleCreateGoal}
-                    className="bg-green-500 text-white w-full py-2 rounded hover:bg-green-600 mb-6"
-                >
-                    {editingGoalId === null ? "Create Goal" : "Update Goal"}
-                </button>
-
-                <button
-                    onClick={handleGenerateAIPlan}
-                    className="bg-purple-600 text-white w-full py-2 rounded hover:bg-purple-700 mb-6"
-                >
-                    🤖 Generate AI Plan
-                </button>
-
-                {loadingAI && (
-                    <p className="text-blue-600 mb-4">
-                        Generating AI Study Plan...
-                    </p>
-                )}
-
-                {aiPlan && (
-                    <div className="bg-gray-100 p-4 rounded-lg mb-6">
-
-                        <h2 className="text-xl font-bold mb-3">
-                            🤖 AI Study Plan
-                        </h2>
-
-                        <pre className="whitespace-pre-wrap">
-                            {aiPlan}
-                        </pre>
-
-                    </div>
-                )}
 
                 
 
@@ -295,57 +398,21 @@ const handleDelete = async (goalId) => {
 
                 ) : (
 
-                    goals.map((goal) => (
+                goals.map((goal) => (
+                    <GoalCard
+                        key={goal.id}
+                        goal={goal}
+                        tasks={tasks[goal.id]}
+                        progress={progress[goal.id]}
+                        handleEdit={handleEdit}
+                        handleDelete={handleDelete}
+                        handleAddTask={handleAddTask}
+                        handleToggleTask={handleToggleTask}
+                        handleDeleteTask={handleDeleteTask}
+                        handleGenerateAITasks={handleGenerateAITasks}
+                    />
 
-                        <div
-                            key={goal.id}
-                            className="border rounded-lg p-4 mb-4 bg-gray-100"
-                        >
-
-                            <h3 className="text-xl font-bold">
-                                {goal.title}
-                            </h3>
-
-                            <p className="mt-2">
-                                {goal.description}
-                            </p>
-
-                            <p className="mt-2">
-                                <strong>Priority:</strong> {goal.priority}
-                            </p>
-
-                            <p>
-                                <strong>Deadline:</strong> {goal.deadline}
-                            </p>
-
-                            <p>
-                                <strong>Daily Hours:</strong> {goal.daily_hours}
-                            </p>
-
-                            <p>
-                                <strong>Status:</strong> {goal.status}
-                            </p>
-                            <div className="flex gap-3 mt-3">
-
-                            <button
-                                onClick={() => handleEdit(goal)}
-                                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-                            >
-                                Edit
-                            </button>
-
-                            <button
-                                onClick={() => handleDelete(goal.id)}
-                                className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-                            >
-                                Delete
-                            </button>
-
-                        </div>
-
-                        </div>
-
-                    ))
+                ))   
 
                 )}
 
