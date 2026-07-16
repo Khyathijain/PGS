@@ -10,6 +10,9 @@ from .models.task import Task
 
 from .models.task import Task
 from .routers import task_router
+from app.models.study_session import StudySession
+from app.routers.timetable_router import router as timetable_router
+from app.routers.dashboard_router import router as dashboard_router
 
 app = FastAPI()
 app.add_middleware(
@@ -32,6 +35,8 @@ app.include_router(user_router.router)
 app.include_router(goal_router.router)
 app.include_router(ai_router.router)
 app.include_router(task_router.router)
+app.include_router(timetable_router)
+app.include_router(dashboard_router)
 
 @app.get("/")
 def home():

@@ -4,6 +4,12 @@ import api from "../services/api";
 import GoalForm from "../components/GoalForm";
 import AIPlan from "../components/AIPlan";
 import GoalCard from "../components/GoalCard";
+import DashboardStats from "../components/DashboardStats";
+import TodaySchedule from "../components/TodaySchedule";
+import CalendarView from "../components/CalendarView";
+import OverdueSessions from "../components/OverdueSessions";
+import WeeklyProgressChart from "../components/WeeklyProgressChart";
+import GoalProgressChart from "../components/GoalProgressChart";
 
 function Dashboard() {
 
@@ -25,10 +31,25 @@ function Dashboard() {
 
     const [tasks, setTasks] = useState({});
     const [progress, setProgress] = useState({});
+    const [timetable, setTimetable] = useState({});
+    const [stats, setStats] = useState({});
+    const [todaySchedule, setTodaySchedule] = useState([]);
+    const [allSessions, setAllSessions] = useState([]);
+    const [overdueSessions, setOverdueSessions] = useState([]);
+    const [weeklyProgress, setWeeklyProgress] = useState([]);
+    const [goalProgress, setGoalProgress] = useState([]);
+
 
     // Load goals when dashboard opens
     useEffect(() => {
         fetchGoals();
+        fetchDashboardStats();
+        fetchTodaySchedule();
+        fetchAllSessions();
+        fetchOverdueSessions();
+        fetchWeeklyProgress();
+        fetchGoalProgress();
+
     }, []);
 
     // Fetch all goals
@@ -44,6 +65,7 @@ function Dashboard() {
 
                 fetchTasks(goal.id);
                 fetchProgress(goal.id);
+                fetchTimetable(goal.id);
 
         });
         } catch (error) {
@@ -93,6 +115,137 @@ function Dashboard() {
     }
 
 };
+    const fetchTimetable = async (goalId) => {
+
+    try {
+
+        const response = await api.get(`/timetable/${goalId}`);
+
+        console.log("Goal ID:", goalId);
+        console.log("Timetable Response:", response.data);
+
+        setTimetable(prev => ({
+            ...prev,
+            [goalId]: response.data
+        }));
+
+    } catch (error) {
+
+        console.log(error);
+
+    }
+
+};
+
+    const fetchDashboardStats = async () => {
+
+    try {
+
+        const response = await api.get("/dashboard/stats");
+
+        console.log("Dashboard Stats:", response.data);
+
+        setStats(response.data);
+
+    } catch (error) {
+
+        console.log(error);
+
+    }
+
+};
+
+    const fetchTodaySchedule = async () => {
+
+    try {
+
+        const response = await api.get("/timetable/today");
+
+        console.log("Today's Schedule:", response.data);
+
+        setTodaySchedule(response.data);
+
+    } catch (error) {
+
+        console.log(error);
+
+    }
+
+};
+
+    const fetchAllSessions = async () => {
+
+    try {
+
+        const response = await api.get("/timetable/all");
+
+        setAllSessions(response.data);
+
+    } catch (error) {
+
+        console.log(error);
+
+    }
+
+};
+
+    const fetchOverdueSessions = async () => {
+
+    try {
+
+        const response = await api.get("/timetable/overdue");
+
+        console.log("Overdue Sessions:", response.data);
+
+        setOverdueSessions(response.data);
+
+    } catch (error) {
+
+        console.log(error);
+
+    }
+
+};
+
+    const fetchWeeklyProgress = async () => {
+
+    try {
+
+        const response = await api.get(
+            "/dashboard/weekly-progress"
+        );
+
+        console.log("Weekly Progress:", response.data);
+
+        setWeeklyProgress(response.data);
+
+    } catch (error) {
+
+        console.log(error);
+
+    }
+
+};
+
+    const fetchGoalProgress = async () => {
+
+    try {
+
+        const response = await api.get(
+            "/dashboard/goal-progress"
+        );
+
+        console.log("Goal Progress:", response.data);
+
+        setGoalProgress(response.data);
+
+    } catch (error) {
+
+        console.log(error);
+
+    }
+
+};
 
     const handleEdit = (goal) => {
 
@@ -121,6 +274,7 @@ const handleDelete = async (goalId) => {
         alert("Goal Deleted Successfully!");
 
         fetchGoals();
+        fetchDashboardStats();
 
     } catch (error) {
 
@@ -157,6 +311,7 @@ const handleAddTask = async (goalId, taskTitle) => {
         // Reload tasks for this goal
         fetchTasks(goalId);
         fetchProgress(goalId);
+        fetchDashboardStats();
 
     } catch (error) {
 
@@ -185,6 +340,8 @@ const handleToggleTask = async (taskId, completed, goalId) => {
         // Reload tasks
         fetchTasks(goalId);
         fetchProgress(goalId);
+        fetchTimetable(goalId);
+        fetchDashboardStats();
 
     } catch (error) {
 
@@ -205,6 +362,7 @@ const handleDeleteTask = async (taskId, goalId) => {
         // Reload tasks for this goal
         fetchTasks(goalId);
         fetchProgress(goalId);
+        fetchDashboardStats();
 
     } catch (error) {
 
@@ -226,12 +384,40 @@ const handleGenerateAITasks = async (goalId) => {
         // Reload tasks for this goal
         fetchTasks(goalId);
         fetchProgress(goalId);
+        fetchDashboardStats();
 
     } catch (error) {
 
         console.log(error);
 
         alert("Failed to generate AI tasks.");
+
+    }
+
+};
+
+const handleGenerateTimetable = async (goalId) => {
+
+    try {
+
+        const response = await api.post(
+            `/timetable/generate/${goalId}`
+        );
+
+        alert("Timetable Generated Successfully!");
+
+        fetchTimetable(goalId);
+        fetchDashboardStats();
+
+    } catch (error) {
+
+    console.log(error);
+
+    console.log(error.response);
+
+    console.log(error.response.data);
+
+    alert(error.response?.data?.detail || "Failed to generate timetable.");
 
     }
 
@@ -290,6 +476,7 @@ const handleGenerateAITasks = async (goalId) => {
 
         // Reload goals
         fetchGoals();
+        fetchDashboardStats();
 
     } catch (error) {
 
@@ -357,6 +544,12 @@ const handleGenerateAITasks = async (goalId) => {
                 <h1 className="text-3xl font-bold text-center mb-6">
                     Dashboard
                 </h1>
+                <DashboardStats stats={stats} />
+                <TodaySchedule sessions={todaySchedule} />
+                <CalendarView sessions={allSessions} />
+                <OverdueSessions sessions={overdueSessions} />
+                <WeeklyProgressChart data={weeklyProgress} />
+                <GoalProgressChart data={goalProgress} />
 
                 {/* Goal Form */}
                 <GoalForm
@@ -404,12 +597,14 @@ const handleGenerateAITasks = async (goalId) => {
                         goal={goal}
                         tasks={tasks[goal.id]}
                         progress={progress[goal.id]}
+                        timetable={timetable[goal.id]}
                         handleEdit={handleEdit}
                         handleDelete={handleDelete}
                         handleAddTask={handleAddTask}
                         handleToggleTask={handleToggleTask}
                         handleDeleteTask={handleDeleteTask}
                         handleGenerateAITasks={handleGenerateAITasks}
+                        handleGenerateTimetable={handleGenerateTimetable}   
                     />
 
                 ))   

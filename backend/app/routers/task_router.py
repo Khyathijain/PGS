@@ -6,6 +6,7 @@ from app.database import get_db
 from app.models.task import Task
 from app.models.goal import Goal
 from app.models.user import User
+from app.models.study_session import StudySession
 
 from app.schemas.task import (
     TaskCreate,
@@ -110,8 +111,24 @@ def update_task(
         )
 
     existing_task.completed = task.completed
+    
+    print("Task Completed:", existing_task.completed)
+
+    # Update the linked study session
+    study_session = db.query(StudySession).filter(
+        StudySession.task_id == existing_task.id
+    ).first()
+
+    print("Study Session:", study_session)
+
+    if study_session:
+        study_session.completed = task.completed
+        print("Updated Study Session:", study_session.completed)
+    else:
+        print("No Study Session Found")
 
     db.commit()
+
     db.refresh(existing_task)
 
     return existing_task

@@ -1,15 +1,18 @@
 import TaskList from "./TaskList";
+import Timetable from "./Timetable";
 
 function GoalCard({
     goal,
     tasks,
+    timetable,
     progress,
     handleEdit,
     handleDelete,
     handleAddTask,
     handleToggleTask,
     handleDeleteTask,
-    handleGenerateAITasks
+    handleGenerateAITasks,
+    handleGenerateTimetable
 }) {
 
     return (
@@ -74,6 +77,7 @@ function GoalCard({
                 handleToggleTask={handleToggleTask}
                 handleDeleteTask={handleDeleteTask}
             />
+            <Timetable timetable={timetable} />
 
             <div className="flex gap-3 mt-4">
 
@@ -82,6 +86,13 @@ function GoalCard({
                     className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700"
                 >
                     🤖 Generate AI Tasks
+                </button>
+
+                <button
+                    onClick={() => handleGenerateTimetable(goal.id)}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+                >
+                    📅 Generate Timetable
                 </button>
 
                 <button
