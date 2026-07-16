@@ -157,3 +157,104 @@ def goal_progress(
         })
 
     return result
+
+@router.get("/procrastination-score")
+def procrastination_score(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+
+    # -----------------------------
+    # Total Tasks
+    # -----------------------------
+
+    total_tasks = (
+        db.query(Task)
+        .join(Goal)
+        .filter(
+            Goal.user_id == current_user.id
+        )
+        .count()
+    )
+
+    # -----------------------------
+    # Completed Tasks
+    # -----------------------------
+
+    completed_tasks = (
+        db.query(Task)
+        .join(Goal)
+        .filter(
+            Goal.user_id == current_user.id,
+            Task.completed == True
+        )
+        .count()
+    )
+
+    # -----------------------------
+    # Overdue Sessions
+    # -----------------------------
+
+    overdue_sessions = (
+        db.query(StudySession)
+        .join(Goal)
+        .filter(
+            Goal.user_id == current_user.id,
+            StudySession.completed == False,
+            StudySession.study_date < date.today()
+        )
+        .count()
+    )
+
+    # -----------------------------
+    # Completion %
+    # -----------------------------
+
+    if total_tasks == 0:
+        completion_rate = 0
+    else:
+        completion_rate = (
+            completed_tasks / total_tasks
+        ) * 100
+
+    # -----------------------------
+    # Rule-Based Score
+    # -----------------------------
+
+    score = 0
+
+    # Overdue contributes up to 40 marks
+    score += min(overdue_sessions * 8, 40)
+
+    # Poor completion contributes up to 60 marks
+    score += (100 - completion_rate) * 0.6
+
+    score = round(score)
+
+    # -----------------------------
+    # Risk Level
+    # -----------------------------
+
+    if score <= 30:
+
+        risk = "Low"
+
+    elif score <= 60:
+
+        risk = "Medium"
+
+    else:
+
+        risk = "High"
+
+    return {
+
+        "score": score,
+
+        "risk": risk,
+
+        "completion_rate": round(completion_rate),
+
+        "overdue_sessions": overdue_sessions
+
+    }

@@ -10,6 +10,8 @@ import CalendarView from "../components/CalendarView";
 import OverdueSessions from "../components/OverdueSessions";
 import WeeklyProgressChart from "../components/WeeklyProgressChart";
 import GoalProgressChart from "../components/GoalProgressChart";
+import ProcrastinationCard from "../components/ProcrastinationCard";
+
 
 function Dashboard() {
 
@@ -38,7 +40,7 @@ function Dashboard() {
     const [overdueSessions, setOverdueSessions] = useState([]);
     const [weeklyProgress, setWeeklyProgress] = useState([]);
     const [goalProgress, setGoalProgress] = useState([]);
-
+    const [procrastination, setProcrastination] = useState(null);
 
     // Load goals when dashboard opens
     useEffect(() => {
@@ -49,6 +51,7 @@ function Dashboard() {
         fetchOverdueSessions();
         fetchWeeklyProgress();
         fetchGoalProgress();
+        fetchProcrastination();
 
     }, []);
 
@@ -238,6 +241,26 @@ function Dashboard() {
         console.log("Goal Progress:", response.data);
 
         setGoalProgress(response.data);
+
+    } catch (error) {
+
+        console.log(error);
+
+    }
+
+};
+
+    const fetchProcrastination = async () => {
+
+    try {
+
+        const response = await api.get(
+            "/dashboard/procrastination-score"
+        );
+
+        console.log("Procrastination:", response.data);
+
+        setProcrastination(response.data);
 
     } catch (error) {
 
@@ -550,6 +573,7 @@ const handleGenerateTimetable = async (goalId) => {
                 <OverdueSessions sessions={overdueSessions} />
                 <WeeklyProgressChart data={weeklyProgress} />
                 <GoalProgressChart data={goalProgress} />
+                <ProcrastinationCard data={procrastination} />
 
                 {/* Goal Form */}
                 <GoalForm
