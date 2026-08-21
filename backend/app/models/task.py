@@ -13,6 +13,8 @@ class Task(Base):
 
     completed = Column(Boolean, default=False)
 
+    estimated_hours = Column(Integer, default=2)
+
     goal_id = Column(Integer, ForeignKey("goals.id"))
 
     goal = relationship("Goal", back_populates="tasks")

@@ -11,7 +11,16 @@ import OverdueSessions from "../components/OverdueSessions";
 import WeeklyProgressChart from "../components/WeeklyProgressChart";
 import GoalProgressChart from "../components/GoalProgressChart";
 import ProcrastinationCard from "../components/ProcrastinationCard";
-
+import GamificationCard from "../components/GamificationCard";
+import BadgesCard from "../components/BadgesCard";
+import AchievementsCard from "../components/AchievementsCard";
+import MonthlyStudyTrendCard from "../components/MonthlyStudyTrendCard";
+import StudyTimeDistributionCard from "../components/StudyTimeDistributionCard";
+import ProductivityHeatmapCard from "../components/ProductivityHeatmapCard";
+import GoalAnalyticsCard from "../components/GoalAnalyticsCard";
+import TaskAnalyticsCard from "../components/TaskAnalyticsCard";
+import TimeAnalyticsCard from "../components/TimeAnalyticsCard";
+import AIInsightsCard from "../components/AIInsightsCard";
 
 function Dashboard() {
 
@@ -41,6 +50,10 @@ function Dashboard() {
     const [weeklyProgress, setWeeklyProgress] = useState([]);
     const [goalProgress, setGoalProgress] = useState([]);
     const [procrastination, setProcrastination] = useState(null);
+    const [gamification, setGamification] = useState(null);
+    const [badges, setBadges] = useState([]);
+    const [achievements, setAchievements] = useState([]);
+
 
     // Load goals when dashboard opens
     useEffect(() => {
@@ -52,6 +65,9 @@ function Dashboard() {
         fetchWeeklyProgress();
         fetchGoalProgress();
         fetchProcrastination();
+        fetchGamification();
+        fetchBadges();
+        fetchAchievements();
 
     }, []);
 
@@ -268,6 +284,33 @@ function Dashboard() {
 
     }
 
+};
+
+    const fetchGamification = async () => {
+    try {
+        const response = await api.get("/dashboard/gamification");
+        setGamification(response.data);
+    } catch (error) {
+        console.error("Error fetching gamification:", error);
+    }
+};
+
+    const fetchBadges = async () => {
+    try {
+        const response = await api.get("/dashboard/badges");
+        setBadges(response.data);
+    } catch (error) {
+        console.error("Error fetching badges:", error);
+    }
+};
+
+    const fetchAchievements = async () => {
+    try {
+        const response = await api.get("/dashboard/achievements");
+        setAchievements(response.data);
+    } catch (error) {
+        console.error("Error fetching achievements:", error);
+    }
 };
 
     const handleEdit = (goal) => {
@@ -574,7 +617,18 @@ const handleGenerateTimetable = async (goalId) => {
                 <WeeklyProgressChart data={weeklyProgress} />
                 <GoalProgressChart data={goalProgress} />
                 <ProcrastinationCard data={procrastination} />
+                <GamificationCard gamification={gamification} />
+                <BadgesCard badges={badges} />
+                <AchievementsCard achievements={achievements} />
+                <MonthlyStudyTrendCard />
+                <StudyTimeDistributionCard />
+                <ProductivityHeatmapCard />
+                <GoalAnalyticsCard />
+                <TaskAnalyticsCard />
+                <TimeAnalyticsCard />
+                <AIInsightsCard />
 
+                
                 {/* Goal Form */}
                 <GoalForm
                     title={title}

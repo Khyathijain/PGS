@@ -22,6 +22,25 @@ router = APIRouter(
     tags=["Tasks"]
 )
 
+# --------------------------------------------------
+# GET ALL TASKS OF CURRENT USER
+# --------------------------------------------------
+
+@router.get("/all", response_model=list[TaskResponse])
+def get_all_tasks(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+
+    tasks = (
+        db.query(Task)
+        .join(Goal)
+        .filter(Goal.user_id == current_user.id)
+        .all()
+    )
+
+    return tasks
+
 
 # --------------------------------------------------
 # CREATE TASK
