@@ -11,6 +11,7 @@ from app.models.task import Task
 from app.models.goal import Goal
 from app.models.user import User
 from app.core.jwt_handler import get_current_user
+from app.services.gemini_service import generate_ai_restriction_decision
 
 
 router = APIRouter(
@@ -280,3 +281,89 @@ def get_focus_history(
         })
 
     return history
+
+class AIRestrictionRequest(BaseModel):
+    session_id: int
+    elapsed_minutes: int
+
+@router.post("/ai-restriction")
+def ai_restriction_check(
+    request: AIRestrictionRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+
+    session = (
+        db.query(FocusSession)
+        .join(Task)
+        .join(Goal)
+        .filter(
+            FocusSession.id == request.session_id,
+            Goal.user_id == current_user.id
+        )
+        .first()
+    )
+
+    if not session:
+        raise HTTPException(
+            status_code=404,
+            detail="Focus session not found"
+        )
+
+    # Current distraction count
+    distraction_count = session.distraction_count or 0
+
+    try:
+
+        # Ask Gemini for an autonomous decision
+        ai_decision = generate_ai_restriction_decision(
+            duration_minutes=session.duration_minutes,
+            elapsed_minutes=request.elapsed_minutes,
+            distraction_count=distraction_count
+        )
+
+        decision = ai_decision["decision"]
+
+        # Apply AI restriction
+        if decision == "RESTRICT":
+
+            session.restricted = True
+
+            db.commit()
+            db.refresh(session)
+
+        return {
+            "session_id": session.id,
+            "decision": decision,
+            "reason": ai_decision["reason"],
+            "severity": ai_decision["severity"],
+            "restricted": session.restricted,
+            "ai_available": True
+        }
+
+    except Exception as error:
+
+        print("⚠️ Gemini AI temporarily unavailable:", error)
+
+        # IMPORTANT:
+        # Do not remove an existing restriction.
+        if session.restricted:
+
+            return {
+                "session_id": session.id,
+                "decision": "RESTRICT",
+                "reason": "Focus restriction remains active.",
+                "severity": 2,
+                "restricted": True,
+                "ai_available": False
+            }
+
+        # Keep the current session safe if AI is temporarily unavailable
+        return {
+            "session_id": session.id,
+            "decision": "WARNING",
+            "reason": "AI monitoring is temporarily unavailable. Your distraction was recorded.",
+            "severity": 1,
+            "restricted": False,
+            "ai_available": False
+        }

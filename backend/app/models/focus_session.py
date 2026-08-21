@@ -19,6 +19,8 @@ class FocusSession(Base):
 
     distraction_count = Column(Integer, default=0)
 
+    restricted = Column(Boolean, default=False)
+
     task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False)
 
     task = relationship("Task")

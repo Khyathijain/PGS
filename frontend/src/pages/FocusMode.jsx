@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import api from "../services/api";
 
 function FocusMode() {
@@ -13,10 +13,16 @@ function FocusMode() {
     const [hasDistraction, setHasDistraction] = useState(false);
     const [distractionCount, setDistractionCount] = useState(0);
     const [isRestricted, setIsRestricted] = useState(false);
+    const [aiDecision, setAiDecision] = useState(null);
+    const [aiReason, setAiReason] = useState("");
+    const [sessionStartTime, setSessionStartTime] = useState(null);
     const [statistics, setStatistics] = useState(null);
     const [distractionStats, setDistractionStats] = useState(null);
     const [efficiency, setEfficiency] = useState(null);
     const [sessionHistory, setSessionHistory] = useState([]);
+
+    const aiCheckingRef = useRef(false);
+    const lastAiCheckRef = useRef(0);
 
     // Load pending tasks
     useEffect(() => {
@@ -112,65 +118,139 @@ function FocusMode() {
         loadSessionHistory();
     }, []);
 
-    // Countdown timer
+
+    // Monitor browser tab activity and ask AI for restriction decision
     useEffect(() => {
-        if (!isRunning || timeLeft <= 0) {
-            return;
-        }
 
-        const timer = setInterval(() => {
-            setTimeLeft(previous => previous - 1);
-        }, 1000);
-
-        return () => clearInterval(timer);
-
-    }, [isRunning, timeLeft]);
-
-    // Monitor whether the Focus Mode browser tab is active
-    // Monitor browser tab activity
-    useEffect(() => {
         if (!isRunning) {
             return;
         }
 
         const handleVisibilityChange = async () => {
 
+            // User leaves Focus Mode
             if (document.visibilityState === "hidden") {
 
                 setIsTabActive(false);
                 setHasDistraction(true);
-                setDistractionCount(previous => {
-                    const newCount = previous + 1;
-
-                    if (newCount >= 3) {
-                        setIsRestricted(true);
-                    }
-
-                    return newCount;
-                });
 
                 console.log("⚠️ Distraction detected");
 
-                if (sessionId) {
+                if (!sessionId) {
+                    return;
+                }
+
+                try {
+
+                    // Record distraction
+                    const distractionResponse = await api.post(
+                        `/focus/${sessionId}/distraction`
+                    );
+
+                    const newCount =
+                        distractionResponse.data.distraction_count;
+
+                    setDistractionCount(newCount);
+
+                    console.log(
+                        "✅ Distraction recorded:",
+                        newCount
+                    );
+
+                    // Prevent multiple Gemini requests at the same time
+                    // Prevent multiple Gemini requests at the same time
+                    if (aiCheckingRef.current) {
+                        console.log(
+                            "🤖 AI check already running. Skipping."
+                        );
+                        return;
+                    }
+
+                    // Prevent Gemini requests too frequently
+                    const now = Date.now();
+
+                    if (now - lastAiCheckRef.current < 10000) {
+                        console.log(
+                            "🤖 AI cooldown active. Skipping this check."
+                        );
+                        return;
+                    }
+
+                    lastAiCheckRef.current = now;
+                    aiCheckingRef.current = true;
+
+                    // Calculate elapsed time
+                    const elapsedMinutes = sessionStartTime
+                        ? Math.floor(
+                            (Date.now() - sessionStartTime) / 60000
+                        )
+                        : 0;
+
                     try {
-                        await api.post(
-                            `/focus/${sessionId}/distraction`
+
+                        // Ask Gemini for decision
+                        const aiResponse = await api.post(
+                            "/focus/ai-restriction",
+                            {
+                                session_id: sessionId,
+                                elapsed_minutes: elapsedMinutes
+                            }
                         );
 
-                        console.log("✅ Distraction recorded");
+                        console.log(
+                            "🤖 AI Restriction Decision:",
+                            aiResponse.data
+                        );
+
+                        setAiDecision(
+                            aiResponse.data.decision
+                        );
+
+                        setAiReason(
+                            aiResponse.data.reason
+                        );
+
+                        // Apply autonomous restriction
+                        if (
+                            aiResponse.data.decision === "RESTRICT" ||
+                            aiResponse.data.restricted === true
+                        ) {
+
+                            setIsRestricted(true);
+
+                            console.log(
+                                "🚫 AI AUTONOMOUS RESTRICTION ACTIVATED"
+                            );
+                        }
+
                     } catch (error) {
+
                         console.error(
-                            "❌ Failed to record distraction:",
+                            "❌ Focus AI restriction check failed:",
                             error
                         );
-                    }
-                }
-            }
-            else {
 
+                    } finally {
+
+                        aiCheckingRef.current = false;
+                    }
+
+                } catch (error) {
+
+                    console.error(
+                        "❌ Failed to record distraction:",
+                        error
+                    );
+                }
+
+            } else {
+
+                // User returned to Focus Mode
                 setIsTabActive(true);
 
-                console.log("Focus tab active");
+                console.log(
+                    "Focus tab active"
+                );
             }
         };
 
@@ -180,13 +260,15 @@ function FocusMode() {
         );
 
         return () => {
+
             document.removeEventListener(
                 "visibilitychange",
                 handleVisibilityChange
             );
+
         };
 
-    }, [isRunning]);
+    }, [isRunning, sessionId, sessionStartTime]);
 
     const startFocus = async () => {
         if (!selectedTask) {
@@ -202,10 +284,21 @@ function FocusMode() {
 
             setSessionId(response.data.session_id);
             setTimeLeft(Number(duration) * 60);
+
+            setSessionStartTime(
+                response.data.start_time
+                    ? new Date(response.data.start_time).getTime()
+                    : Date.now()
+            );
+
             setIsTabActive(true);
             setHasDistraction(false);
             setDistractionCount(0);
-            setIsRestricted(false); 
+            setIsRestricted(false);
+            setAiDecision(null);
+            setAiReason("");
+            aiCheckingRef.current = false;
+            lastAiCheckRef.current = 0;
             setIsRunning(true);
         } catch (error) {
             console.error("Unable to start focus session:", error);
@@ -217,10 +310,13 @@ function FocusMode() {
         setIsRunning(false);
         setTimeLeft(0);
         setSessionId(null);
+        setSessionStartTime(null);
         setIsTabActive(true);
         setHasDistraction(false);
         setDistractionCount(0);
         setIsRestricted(false);
+        setAiDecision(null);
+        setAiReason("");
     };
 
 
@@ -342,16 +438,21 @@ function FocusMode() {
                                 <div className="bg-red-100 border border-red-400 text-red-700 p-6 rounded-lg mb-6">
 
                                     <h2 className="text-2xl font-bold mb-3">
-                                        🚫 Focus Restriction Activated
+                                        🚫 AI Focus Restriction Activated
                                     </h2>
 
                                     <p className="mb-2">
-                                        You have left Focus Mode 3 times.
+                                        The AI detected repeated distracting behavior.
                                     </p>
 
+                                    {aiReason && (
+                                        <p className="text-sm mb-2">
+                                            <strong>AI Reason:</strong> {aiReason}
+                                        </p>
+                                    )}
+
                                     <p className="text-sm">
-                                        Please return to your focus session and avoid switching
-                                        away from Focus Mode.
+                                        Please return to Focus Mode and stay focused on your task.
                                     </p>
 
                                 </div>
@@ -397,6 +498,22 @@ function FocusMode() {
                                             🚫 Multiple distractions detected. Focus restrictions may be applied.
                                         </div>
                                     )}
+                                </div>
+                            )}
+
+                            {aiDecision && !isRestricted && (
+                                <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 p-4 rounded-lg mb-4">
+
+                                    <p className="font-bold">
+                                        🤖 AI Focus Assessment: {aiDecision}
+                                    </p>
+
+                                    {aiReason && (
+                                        <p className="text-sm mt-1">
+                                            {aiReason}
+                                        </p>
+                                    )}
+
                                 </div>
                             )}
 

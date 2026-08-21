@@ -1,20 +1,28 @@
 import os
+import json
 
 from dotenv import load_dotenv
 from google import genai
 
-# Load .env file
+
+# --------------------------------------------------
+# GEMINI CONFIGURATION
+# --------------------------------------------------
+
 load_dotenv()
 
-# Read API key
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Create Gemini client
-client = genai.Client(api_key=GEMINI_API_KEY)
+client = genai.Client(
+    api_key=GEMINI_API_KEY
+)
 
-# Gemini model
 MODEL_NAME = "gemini-3.6-flash"
 
+
+# --------------------------------------------------
+# GENERATE STUDY PLAN
+# --------------------------------------------------
 
 def generate_plan(goal: str):
 
@@ -31,6 +39,10 @@ Divide it into weekly milestones.
 
     return response.text
 
+
+# --------------------------------------------------
+# GENERATE TASKS
+# --------------------------------------------------
 
 def generate_tasks(goal: str):
 
@@ -54,6 +66,11 @@ Rules:
     )
 
     return response.text
+
+
+# --------------------------------------------------
+# AI PRODUCTIVITY COACH
+# --------------------------------------------------
 
 def generate_coach_reply(
     message: str,
@@ -104,6 +121,7 @@ IMPORTANT RULES:
     advice while still considering their study context.
 
 Response style:
+
 - Friendly
 - Clear
 - Concise
@@ -117,3 +135,103 @@ Response style:
     )
 
     return response.text
+
+
+# --------------------------------------------------
+# PGS_6 - AI AUTONOMOUS RESTRICTION
+# --------------------------------------------------
+
+def generate_ai_restriction_decision(
+    duration_minutes: int,
+    elapsed_minutes: int,
+    distraction_count: int
+):
+
+    prompt = f"""
+You are the autonomous focus enforcement AI inside the PGS
+study productivity application.
+
+Analyze the user's current focus behavior.
+
+CURRENT FOCUS SESSION:
+
+Session duration: {duration_minutes} minutes
+Elapsed time: {elapsed_minutes} minutes
+Distractions detected: {distraction_count}
+
+DECISION RULES:
+
+- CONTINUE:
+  The user is maintaining reasonable focus.
+
+- WARNING:
+  The user is showing some distracting behavior.
+
+- RESTRICT:
+  The user is repeatedly leaving Focus Mode or showing
+  strong distracting behavior.
+
+IMPORTANT:
+
+Return ONLY valid JSON.
+
+The decision must be exactly one of:
+
+CONTINUE
+WARNING
+RESTRICT
+
+Severity must be:
+
+0 = normal
+1 = warning
+2 = restriction
+
+Return this exact structure:
+
+{{
+    "decision": "CONTINUE",
+    "reason": "Short explanation",
+    "severity": 0
+}}
+"""
+
+    response = client.models.generate_content(
+        model=MODEL_NAME,
+        contents=prompt
+    )
+
+    try:
+
+        result = json.loads(response.text)
+
+        decision = result.get("decision")
+        reason = result.get("reason")
+        severity = result.get("severity")
+
+        # Validate AI decision
+        if decision not in [
+            "CONTINUE",
+            "WARNING",
+            "RESTRICT"
+        ]:
+            raise ValueError("Invalid AI decision")
+
+        # Validate severity
+        if severity not in [0, 1, 2]:
+            raise ValueError("Invalid severity")
+
+        return {
+            "decision": decision,
+            "reason": reason,
+            "severity": severity
+        }
+
+    except (json.JSONDecodeError, ValueError):
+
+        # Safe fallback
+        return {
+            "decision": "WARNING",
+            "reason": "AI response could not be safely interpreted.",
+            "severity": 1
+        }
